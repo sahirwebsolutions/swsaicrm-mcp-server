@@ -7,6 +7,7 @@ from typing import Any
 
 from auth import AuthContext
 from client import CRMClient, UpstreamError
+from context_state import is_api_connection_token
 from tracing import get_request_id
 
 # Canonical INTERNAL tools registered in CrmUnifiedToolRegistry (MCP alias → canonical)
@@ -34,6 +35,9 @@ UNIFIED_INTERNAL_TOOLS: frozenset[str] = frozenset(
 
 def routes_via_unified_executor(tool_name: str) -> bool:
     if os.getenv("MCP_UNIFIED_EXECUTOR", "1").strip().lower() in ("0", "false", "no"):
+        return False
+    # API connections reach only published routes, so they use the direct REST path.
+    if is_api_connection_token():
         return False
     return tool_name in UNIFIED_INTERNAL_TOOLS
 

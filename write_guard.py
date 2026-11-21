@@ -25,8 +25,11 @@ class WriteGuard:
 
     @staticmethod
     def _semantic_key(workspace_id: str, tool_name: str, params: dict[str, Any]) -> str:
+        from context_state import cache_principal_var
+
+        scoped = {"_principal": cache_principal_var.get(), "params": dict(params)}
         h = hashlib.sha256(
-            canonical_json(dict(params)).encode("utf-8"),
+            canonical_json(scoped).encode("utf-8"),
         ).hexdigest()
         return f"{workspace_id}:{tool_name}:{h}"
 

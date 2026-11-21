@@ -8,12 +8,13 @@ if TYPE_CHECKING:
     from cache import TtlCache
 
 # scope name → tool cache prefixes `{workspace_id}:{tool_name}:…`
+# call_read_action can read any scope, so every write clears it too.
 SCOPE_TOOLS: dict[str, tuple[str, ...]] = {
-    "tasks": ("list_tasks",),
-    "contacts": ("search_contacts", "get_contact"),
-    "boards": ("list_boards",),
-    "deals": ("list_deals",),
-    "pipelines": ("list_pipelines",),
+    "tasks": ("list_tasks", "get_task", "call_read_action"),
+    "contacts": ("search_contacts", "get_contact", "call_read_action"),
+    "boards": ("list_boards", "call_read_action"),
+    "deals": ("list_deals", "call_read_action"),
+    "pipelines": ("list_pipelines", "call_read_action"),
 }
 
 

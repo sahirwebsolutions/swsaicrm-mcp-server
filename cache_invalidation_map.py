@@ -25,7 +25,9 @@ INVALIDATION_MAP: dict[str, tuple[str, ...]] = {
     "delete_contact": ("contacts", "tasks"),
     "add_contact_note": ("contacts",),
     "create_task": ("tasks", "contacts"),
+    "update_task": ("tasks", "contacts"),
     "update_task_status": ("tasks", "contacts"),
+    "delete_task": ("tasks", "contacts"),
 }
 
 

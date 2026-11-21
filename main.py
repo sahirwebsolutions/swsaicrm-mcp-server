@@ -1,5 +1,6 @@
 """
-CRM MCP adapter — thin layer over FastAPI. Run with stdio (Cursor) or HTTP (SSE).
+CRM MCP adapter — thin layer over FastAPI. Run with stdio (Cursor) or HTTP
+(Streamable HTTP at /mcp, legacy SSE at /mcp/events).
 
 `python main.py` with cwd on PYTHONPATH (see README).
 """
@@ -31,7 +32,7 @@ from canonical import canonical_json
 from client import CRMClient, UpstreamError
 from coalescing import RequestCoalescer
 from config import Settings, load_settings
-from context_state import resolve_raw_bearer_token
+from context_state import cache_principal_var, resolve_raw_bearer_token
 from circuit_breaker import EndpointCircuitBreaker
 from http_app import build_starlette_app
 from input_normalize import normalize_raw_params
@@ -137,6 +138,7 @@ def _build_server_and_handlers(
             return {"error": e.code, "message": e.message}
 
         uid, wid = auth.user_id, auth.workspace_id
+        cache_principal_var.set(auth.user_id)
 
         rl = await limiter.check(user_id=auth.user_id, workspace_id=auth.workspace_id)
         if not rl.ok:
@@ -180,7 +182,7 @@ def _build_server_and_handlers(
             write_guard=write_guard,
         )
 
-        ckey = f"{auth.workspace_id}:{name}:{canonical_json(norm_args)}"
+        ckey = f"{auth.workspace_id}:{auth.user_id}:{name}:{canonical_json(norm_args)}"
 
         async def _execute() -> Any:
             return await tool.run(ctx, norm_args)
@@ -288,12 +290,22 @@ async def _run_http_async() -> None:
     import uvicorn
 
     rt = await build_runtime_async()
-    app = build_starlette_app(rt.server, rt.init_options, crm_client=rt.client)
+
+    def token_is_valid(token: str) -> bool:
+        try:
+            decode_bearer_jwt(token, secret=rt.settings.jwt_secret, algorithms=[rt.settings.jwt_algorithm])
+        except AuthError:
+            return False
+        return True
+
+    app = build_starlette_app(rt.server, rt.init_options, crm_client=rt.client, token_is_valid=token_is_valid)
     cfg = uvicorn.Config(
         app,
         host=rt.settings.mcp_host,
         port=rt.settings.mcp_port,
         log_level="info",
+        proxy_headers=True,
+        forwarded_allow_ips="127.0.0.1",
     )
     server = uvicorn.Server(cfg)
     await server.serve()

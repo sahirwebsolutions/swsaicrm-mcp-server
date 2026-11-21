@@ -73,7 +73,7 @@ class CrmSseServerTransport(SseServerTransport):
                 event_seq[0] += 1
                 await sse_stream_writer.send(
                     {
-                        "event_id": event_seq[0],
+                        "id": str(event_seq[0]),
                         "event": "endpoint",
                         "data": client_post_uri_data,
                     }
@@ -81,7 +81,7 @@ class CrmSseServerTransport(SseServerTransport):
                 while True:
                     ev = await queue.get()
                     event_seq[0] += 1
-                    await sse_stream_writer.send({**ev, "event_id": event_seq[0]})
+                    await sse_stream_writer.send({**ev, "id": str(event_seq[0])})
 
             async with sse_stream_writer, write_stream_reader:
                 forwarder = asyncio.create_task(forward_to_http())

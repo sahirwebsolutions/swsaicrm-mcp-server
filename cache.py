@@ -17,8 +17,11 @@ class TtlCache:
         self._lock = threading.Lock()
 
     def key_for(self, workspace_id: str, tool_name: str, params: dict[str, Any]) -> str:
-        """Pattern: {workspace_id}:{tool_name}:{hash}"""
-        h = hashlib.sha256(canonical_json(params).encode("utf-8")).hexdigest()[:32]
+        """Pattern: {workspace_id}:{tool_name}:{hash}. The hash includes the calling member."""
+        from context_state import cache_principal_var
+
+        scoped = {"_principal": cache_principal_var.get(), "params": params}
+        h = hashlib.sha256(canonical_json(scoped).encode("utf-8")).hexdigest()[:32]
         return f"{workspace_id}:{tool_name}:{h}"
 
     def get(self, key: str) -> Any | None:

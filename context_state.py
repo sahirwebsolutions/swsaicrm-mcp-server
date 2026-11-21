@@ -2,10 +2,30 @@
 
 from __future__ import annotations
 
+import base64
 import contextvars
+import json
 import os
 
 bearer_header_var: contextvars.ContextVar[str | None] = contextvars.ContextVar("bearer_header", default=None)
+# Caller identity for cache keys: results visible to one member must not serve another.
+cache_principal_var: contextvars.ContextVar[str] = contextvars.ContextVar("cache_principal", default="")
+
+
+def is_api_connection_token() -> bool:
+    """Routing hint only (unverified claim peek). The CRM verifies the token on every call."""
+    token = resolve_raw_bearer_token()
+    if not token:
+        return False
+    parts = token.split(".")
+    if len(parts) != 3:
+        return False
+    segment = parts[1] + "=" * (-len(parts[1]) % 4)
+    try:
+        claims = json.loads(base64.urlsafe_b64decode(segment.encode("ascii")))
+    except Exception:
+        return False
+    return isinstance(claims, dict) and claims.get("token_use") == "api_connection"
 
 
 def resolve_raw_bearer_token() -> str | None:

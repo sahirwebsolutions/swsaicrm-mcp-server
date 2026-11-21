@@ -9,7 +9,7 @@ def http_status_to_code(status: int | None) -> str:
     """Map HTTP status to MCP-facing codes (includes upstream_unavailable when circuit is open — surfaced via UpstreamError.code)."""
     if status is None:
         return "upstream_error"
-    if status == 400:
+    if status in (400, 405, 422):
         return "invalid_params"
     if status == 401:
         return "auth_failed"
@@ -30,7 +30,20 @@ def safe_upstream_detail(body: Any) -> str:
         d = body.get("detail")
         if isinstance(d, str) and d.strip():
             return d[:500]
+        if isinstance(d, list) and d:
+            return _validation_summary(d)[:500]
         err = body.get("error")
         if isinstance(err, str) and err.strip():
             return err[:500]
     return "request failed"
+
+
+def _validation_summary(items: list[Any]) -> str:
+    parts: list[str] = []
+    for item in items[:8]:
+        if not isinstance(item, dict):
+            continue
+        loc = ".".join(str(x) for x in (item.get("loc") or []))
+        msg = str(item.get("msg") or "invalid").strip()
+        parts.append(f"{loc}: {msg}" if loc else msg)
+    return "; ".join(parts) or "request failed"
