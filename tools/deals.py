@@ -275,7 +275,7 @@ class ListDealsParams(BaseModel):
     page: int = Field(1, ge=1, le=10000)
     limit: int = Field(20, ge=1, le=100)
     sort_by: str = Field("created_at", max_length=64)
-    sort_order: str = Field("desc", pattern=r"^(?i)(asc|desc)$")
+    sort_order: str = Field("desc", pattern=r"^(asc|desc|ASC|DESC)$")
 
 
 class ListDealsTool(BaseTool):

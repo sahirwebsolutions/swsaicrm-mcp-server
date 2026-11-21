@@ -14,17 +14,22 @@ class ListWorkspacePhoneNumbersParams(BaseModel):
     model_config = {"extra": "forbid"}
 
     list_scope: str = Field(
-        "outbound",
+        "management",
         max_length=32,
-        description="outbound = caller-ID picker; management = admin list",
+        description=(
+            "management (default) = every workspace line you may manage, including lines "
+            "assigned to other users; outbound = only the lines you may send/call from "
+            "(vacant lines and lines assigned to you)"
+        ),
     )
 
 
 class ListWorkspacePhoneNumbersTool(BaseTool):
     name: ClassVar[str] = "list_workspace_phone_numbers"
     description: ClassVar[str] = (
-        "List workspace phone numbers and their status. Read-only metadata. "
-        "Does not place calls. Workspace is taken from auth context."
+        "List workspace phone numbers with provider (twilio/telnyx), status, SMS capability "
+        "and assigned user. Read-only metadata. Does not place calls. Workspace is taken "
+        "from auth context."
     )
 
     @classmethod
@@ -34,7 +39,7 @@ class ListWorkspacePhoneNumbersTool(BaseTool):
     async def run(self, ctx: ToolContext, params: dict[str, Any]) -> dict[str, Any]:
         p = validate_args(params, ListWorkspacePhoneNumbersParams)
         ws = ctx.auth.workspace_id
-        q = {"list_scope": p.list_scope or "outbound"}
+        q = {"list_scope": p.list_scope or "management"}
         key = ctx.cache.key_for(ws, self.name, q)
         hit = ctx.cache.get(key)
         if hit is not None:

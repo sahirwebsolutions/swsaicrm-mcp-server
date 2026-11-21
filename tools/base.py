@@ -33,10 +33,40 @@ class ToolExecuteContext(BaseModel):
     request_id: str
 
 
+_READ_PREFIXES = (
+    "list_",
+    "get_",
+    "search_",
+    "describe_",
+    "find_",
+    "check_",
+    "preview_",
+    "validate_",
+    "generate_report",
+    "whoami",
+    "call_read_",
+)
+
+
 class BaseTool(ABC):
     name: ClassVar[str]
     version: ClassVar[str] = "1.0.0"
     description: ClassVar[str]
+    # None infers from the name; clients use these hints to auto-approve reads and confirm deletes.
+    read_only: ClassVar[bool | None] = None
+    destructive: ClassVar[bool | None] = None
+
+    @classmethod
+    def is_read_only(cls) -> bool:
+        if cls.read_only is not None:
+            return cls.read_only
+        return cls.name.startswith(_READ_PREFIXES)
+
+    @classmethod
+    def is_destructive(cls) -> bool:
+        if cls.destructive is not None:
+            return cls.destructive
+        return cls.name.startswith("delete_")
 
     @abstractmethod
     async def run(self, ctx: "ToolContext", params: dict[str, Any]) -> dict[str, Any]:

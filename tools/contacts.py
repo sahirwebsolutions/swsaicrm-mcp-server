@@ -16,6 +16,14 @@ from tools.base import BaseTool, ToolExecuteContext, validate_args
 from write_helpers import finalize_write_success, guard_try_cached
 
 
+def _looks_like_uuid(value: str) -> bool:
+    try:
+        UUID(str(value))
+        return True
+    except (TypeError, ValueError):
+        return False
+
+
 def _split_name(full: str) -> tuple[str, str]:
     parts = full.strip().split(None, 1)
     if not parts:
@@ -36,6 +44,11 @@ class SearchContactsParams(BaseModel):
     status: str | None = Field(None, max_length=50)
     source: str | None = Field(None, max_length=100)
     filter_id: UUID | None = None
+    tags: list[str] | None = Field(
+        None,
+        max_length=50,
+        description="Only contacts that have any of these tags. Tag ids or tag names (case-insensitive).",
+    )
     criteria: dict[str, Any] | None = None
     filters: dict[str, Any] | None = None
     unclaimed_leads: bool | None = None
@@ -119,6 +132,8 @@ class SearchContactsTool(BaseTool):
                 unified_payload["criteria"] = p.criteria
             if p.filters:
                 unified_payload["filters"] = p.filters
+            if p.tags:
+                unified_payload["tags"] = p.tags
             out = await execute_via_unified(
                 ctx.client,
                 ctx.auth,
@@ -133,11 +148,6 @@ class SearchContactsTool(BaseTool):
             return self.wrap_result(out.get("data") or out, te)
 
         ws = ctx.auth.workspace_id
-        key = ctx.cache.key_for(ws, self.name, {"search": p.search, "limit": max_lim, "cursor": p.cursor})
-        hit = ctx.cache.get(key)
-        if hit is not None:
-            return hit
-
         q: dict[str, Any] = {
             "workspace_id": ws,
             "search": p.search or p.query,
@@ -157,6 +167,15 @@ class SearchContactsTool(BaseTool):
             q["criteria"] = json.dumps(p.criteria, separators=(",", ":"))
         if p.filters:
             q["filters"] = json.dumps(p.filters, separators=(",", ":"))
+        if p.tags:
+            tag_ids = [t for t in p.tags if _looks_like_uuid(t)]
+            tag_names = [t for t in p.tags if not _looks_like_uuid(t)]
+            if tag_ids:
+                q["tags"] = ",".join(tag_ids)
+            if tag_names:
+                merged = dict(p.filters or {})
+                merged["tag_names"] = tag_names
+                q["filters"] = json.dumps(merged, separators=(",", ":"))
         if p.unclaimed_leads is not None:
             q["unclaimed_leads"] = str(bool(p.unclaimed_leads)).lower()
         if p.unclaimed_pond_id:
@@ -165,6 +184,11 @@ class SearchContactsTool(BaseTool):
             q["sort_by"] = p.sort_by
         if p.sort_order:
             q["sort_order"] = p.sort_order
+
+        key = ctx.cache.key_for(ws, self.name, q)
+        hit = ctx.cache.get(key)
+        if hit is not None:
+            return hit
 
         resp = await ctx.client._request_with_retries(
             "GET",

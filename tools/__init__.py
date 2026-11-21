@@ -38,12 +38,19 @@ def load_tool_classes() -> list[Type[BaseTool]]:
 def mcp_tool_definitions(classes: list[Type[BaseTool]]) -> list[mcp_types.Tool]:
     out: list[mcp_types.Tool] = []
     for cls in classes:
+        read_only = cls.is_read_only()
         out.append(
             mcp_types.Tool(
                 name=cls.name,
                 title=cls.name,
                 description=cls.description,
                 inputSchema=cls.input_schema(),
+                annotations=mcp_types.ToolAnnotations(
+                    title=cls.name.replace("_", " ").capitalize(),
+                    readOnlyHint=read_only,
+                    destructiveHint=False if read_only else cls.is_destructive(),
+                    openWorldHint=False,
+                ),
             )
         )
     return out

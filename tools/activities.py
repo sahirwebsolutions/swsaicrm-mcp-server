@@ -38,7 +38,7 @@ class ListActivitiesTool(BaseTool):
         p = validate_args(params, ListActivitiesParams)
         ws = ctx.auth.workspace_id
         max_lim = min(p.limit, ctx.settings.tool_max_results)
-        q: dict[str, Any] = {"workspace_id": ws, "limit": max_lim}
+        q: dict[str, Any] = {"workspace_id": ws, "limit": max_lim, "compact": "true"}
         if p.event_type:
             q["event_type"] = p.event_type
 
