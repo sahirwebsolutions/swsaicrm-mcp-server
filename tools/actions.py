@@ -219,7 +219,9 @@ class CallWriteActionTool(BaseTool):
     destructive: ClassVar[bool | None] = True
     description: ClassVar[str] = (
         "Run a create, edit, delete, or send action from search_actions. Call describe_action first "
-        "to see the body fields. Repeating the same call with the same idempotency_key is safe."
+        "to see the body fields. Repeating the same call with the same idempotency_key is safe. "
+        "For many records, use the bulk action in one call instead of one call per record "
+        "(e.g. text a group with sms-campaigns/bulk-send and {{first_name}})."
     )
 
     @classmethod
